@@ -24,20 +24,23 @@ jobs:
         run: npm ci
 
       - name: Build NSIS installer
-        run: npx electron-builder --win nsis
+        # publish=never：由最后的 action 统一上传，避免与 electron-builder 内建发布重复
+        run: npx electron-builder --win nsis -c.publish=never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ELECTRON_MIRROR: https://npmmirror.com/mirrors/electron/
+          ELECTRON_BUILDER_BINARIES_MIRROR: https://npmmirror.com/mirrors/electron-builder-binaries/
 
-      - name: Upload artifacts
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
           path: release/*.exe
           if-no-files-found: error
 
-      - name: Attach to release
+      - name: Create GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.exe
           generate_release_notes: true
+          draft: false
