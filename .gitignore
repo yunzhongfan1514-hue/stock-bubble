@@ -1,0 +1,33 @@
+# 依赖
+node_modules/
+
+# 构建产物（体积大，用 Releases 分发）
+release/
+release-build/
+store-build/
+dist/
+
+# 调试与临时文件
+debug/
+*.log
+npm-debug.log*
+builder-debug.yml
+builder-effective-config.yaml
+
+# 系统文件
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+
+# 本机一次性脚本（含个人路径，不随项目开源）
+tools/cleanup-c-drive.cmd
+tools/cleanup-leftover.py
+
+# 本地环境配置
+.env
+.env.local

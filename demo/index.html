@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>股票气泡 · 效果演示</title>
+<style>
+  :root {
+    --op: 0.88;
+    --up: #ff5b5b;
+    --down: #26c281;
+    --accent: #9aa4b2;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100%;
+    font-family: "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif;
+    -webkit-user-select: none; user-select: none;
+    background: #0b1220;
+    color: #dfe5ee;
+    overflow-x: hidden;
+  }
+
+  /* ---------- 模拟桌面 ---------- */
+  #desktop {
+    position: relative;
+    min-height: 100vh;
+    padding: 46px 48px 130px;
+    background:
+      radial-gradient(1100px 620px at 72% 18%, rgba(64,96,150,.55) 0%, transparent 62%),
+      radial-gradient(900px 560px at 18% 82%, rgba(42,72,120,.5) 0%, transparent 58%),
+      linear-gradient(160deg, #16233c 0%, #0d1526 56%, #0a1120 100%);
+  }
+  .win {
+    position: absolute;
+    border-radius: 14px;
+    background: rgba(20,26,38,.62);
+    border: 1px solid rgba(255,255,255,.07);
+    box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    backdrop-filter: blur(14px);
+  }
+  .win.a { left: 6%; top: 200px; width: 42%; height: 300px; }
+  .win.b { right: 6%; top: 250px; width: 34%; height: 210px; }
+  .win .bar {
+    height: 34px; border-bottom: 1px solid rgba(255,255,255,.06);
+    display: flex; align-items: center; gap: 6px; padding: 0 12px;
+  }
+  .wdot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.16); }
+  .lines { padding: 18px; display: grid; gap: 10px; }
+  .lines i { display: block; height: 9px; border-radius: 5px; background: rgba(255,255,255,.07); }
+
+  .label {
+    position: absolute;
+    font-size: 11px; letter-spacing: .5px;
+    color: rgba(190,205,225,.5);
+  }
+
+  /* ---------- 气泡（与 bar.html 同结构：外壳固定 + 内容窗轮播） ---------- */
+  .bubble {
+    position: absolute;
+    width: 192px;          /* 固定宽度：外壳尺寸不随内容变化 */
+    height: 34px;
+  }
+  .shell {
+    position: absolute;
+    inset: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0 14px 0 11px;
+    border-radius: 999px;
+    white-space: nowrap;
+    color: #eef1f6;
+    background: linear-gradient(180deg, rgba(32,34,40,var(--op)) 0%, rgba(13,14,18,var(--op)) 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.09) inset,
+      0 2px 10px rgba(0,0,0,.34),
+      0 0 14px -6px var(--accent);
+    backdrop-filter: blur(18px) saturate(170%);
+    overflow: hidden;
+    transition: box-shadow .7s ease;
+  }
+  .shell.up { --accent: var(--up); }
+  .shell.down { --accent: var(--down); }
+  .shell.flat { --accent: #98a1ae; }
+
+  .dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 7px 1px var(--accent);
+    flex: none; opacity: .95;
+    transition: background .7s ease, box-shadow .7s ease;
+  }
+
+  .stage { position: relative; flex: 1 1 auto; height: 100%; overflow: hidden; }
+  .slot {
+    position: absolute; inset: 0;
+    display: flex; align-items: center;
+    opacity: 0;
+    transform: translate3d(0, 7px, 0);
+    filter: blur(1.6px);
+    transition:
+      opacity .62s cubic-bezier(.4, 0, .2, 1),
+      transform .62s cubic-bezier(.33, .8, .32, 1),
+      filter .55s ease;
+  }
+  .slot.on { opacity: 1; transform: translate3d(0, 0, 0); filter: blur(0); }
+  .slot.leaving { opacity: 0; transform: translate3d(0, -7px, 0); filter: blur(1.6px); }
+
+  .item { display: flex; align-items: center; gap: 7px; white-space: nowrap; }
+  .nm { font-size: 12px; color: rgba(255,255,255,.66); letter-spacing: .2px; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+  .pr { font-size: 13px; font-weight: 600; letter-spacing: .2px; font-variant-numeric: tabular-nums; color: #fff; }
+  .chg { font-size: 11px; font-weight: 600; padding: 3px 6px; border-radius: 7px; font-variant-numeric: tabular-nums; }
+  .up .chg { color: #ff8f8f; background: rgba(255,91,91,.16); }
+  .down .chg { color: #5fe0a7; background: rgba(38,194,129,.16); }
+  .flat .chg { color: #a9b2bf; background: rgba(255,255,255,.08); }
+  .arr { font-size: 9px; margin-right: 2px; opacity: .9; }
+
+  .prog {
+    position: absolute; left: 11px; right: 14px; bottom: 3px; height: 1.5px;
+    border-radius: 2px; background: rgba(255,255,255,.10); overflow: hidden;
+  }
+  .prog::after {
+    content: ""; display: block; width: 100%; height: 100%;
+    background: var(--accent); opacity: .8;
+    transform-origin: left center;
+    transform: scaleX(0);
+    transition: background .7s ease;
+  }
+  .prog.run::after { animation: prog var(--dur, 4s) linear forwards; }
+  @keyframes prog { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  /* 定位模式虚线框 */
+  .bubble.placing .shell {
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,.09) inset,
+      0 2px 10px rgba(0,0,0,.34),
+      0 0 0 2px rgba(96,165,250,.85),
+      0 0 0 5px rgba(96,165,250,.15);
+  }
+
+  /* ---------- 任务栏 ---------- */
+  #taskbar {
+    position: fixed; left: 0; right: 0; bottom: 0; height: 48px;
+    background: rgba(22,26,34,.9);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: center; gap: 14px;
+  }
+  .tb-icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.08); }
+  #clock { position: absolute; right: 18px; font-size: 11.5px; color: #aeb6c4; font-variant-numeric: tabular-nums; }
+
+  /* ---------- 说明 ---------- */
+  header { position: relative; }
+  h1 { font-size: 19px; font-weight: 600; margin: 0 0 8px; letter-spacing: .2px; }
+  .sub { font-size: 12.5px; color: rgba(180,196,218,.66); line-height: 1.85; max-width: 740px; }
+  .sub b { color: #8fb6ff; font-weight: 600; }
+
+  .tag {
+    display: inline-flex; align-items: center; gap: 6px;
+    margin-top: 16px; padding: 5px 11px; border-radius: 999px;
+    background: rgba(96,165,250,.14);
+    border: 1px solid rgba(96,165,250,.3);
+    color: #a9c8ff; font-size: 11.5px;
+  }
+  .tag::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: #61a0ff; }
+
+  .actions { margin-top: 18px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .btn {
+    font-family: inherit; font-size: 12px; color: #cfe0ff;
+    padding: 8px 15px; border-radius: 9px; cursor: pointer;
+    background: rgba(96,165,250,.16);
+    border: 1px solid rgba(96,165,250,.35);
+    transition: background .2s ease, transform .1s ease;
+  }
+  .btn:hover { background: rgba(96,165,250,.26); }
+  .btn:active { transform: scale(.98); }
+  .actions .note { font-size: 11.5px; color: rgba(170,190,215,.55); }
+
+  /* 刷新时的价格脉冲（与正式版一致） */
+  .item.pulse .pr { animation: pulse .55s ease; }
+  @keyframes pulse {
+    0% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+    35% { text-shadow: 0 0 10px var(--accent); }
+    100% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+  }
+
+  /* 细线框：标出外壳恒定尺寸 */
+  .frame {
+    position: absolute;
+    border: 1px dashed rgba(140,170,220,.28);
+    border-radius: 999px;
+    pointer-events: none;
+  }
+</style>
+</head>
+<body>
+  <div id="desktop">
+    <header>
+      <h1>股票气泡 · 轮播效果（v1.2）</h1>
+      <p class="sub">
+        气泡外壳<b>固定不动</b>，只有里面的文字在轮播：旧内容轻轻上浮淡出 → 新内容自下浮入，整体过渡约 0.6 秒。<br />
+        <b>刷新和切换是两件独立的事</b>：刷新只管更新数字，切换只管换到下一只，两者互不干扰。<br />
+        点下面的按钮模拟一次行情刷新 —— 数字会变，气泡不动，轮播节奏也不受影响。
+      </p>
+      <div class="tag">气泡位置与尺寸恒定 · 仅内容切换</div>
+      <div class="actions">
+        <button class="btn" id="refreshBtn">模拟一次行情刷新</button>
+        <span class="note">只有数字会变，气泡和轮播节奏都不动</span>
+      </div>
+    </header>
+
+    <div class="win a">
+      <div class="bar"><i class="wdot"></i><i class="wdot"></i><i class="wdot"></i></div>
+      <div class="lines">
+        <i style="width:72%"></i><i style="width:88%"></i><i style="width:54%"></i><i style="width:66%"></i>
+      </div>
+    </div>
+    <div class="win b">
+      <div class="bar"><i class="wdot"></i><i class="wdot"></i><i class="wdot"></i></div>
+      <div class="lines"><i style="width:64%"></i><i style="width:80%"></i><i style="width:42%"></i></div>
+    </div>
+
+    <!-- 桌面任意位置 -->
+    <div class="bubble" style="left:8%; top:282px">
+      <span class="label" style="left:0; top:-26px">桌面任意位置</span>
+      <div class="frame" style="inset:0"></div>
+      <div class="shell flat">
+        <i class="dot"></i>
+        <div class="stage"><div class="slot"></div><div class="slot"></div></div>
+        <i class="prog"></i>
+      </div>
+    </div>
+
+    <!-- 定位模式 -->
+    <div class="bubble placing" style="right:12%; top:520px">
+      <span class="label" style="left:0; top:-26px">拖动定位中（虚线框）</span>
+      <div class="shell flat">
+        <i class="dot"></i>
+        <div class="stage"><div class="slot"></div><div class="slot"></div></div>
+        <i class="prog"></i>
+      </div>
+    </div>
+
+    <!-- 任务栏里 -->
+    <div class="bubble" style="left:50%; bottom:7px; margin-left:-96px">
+      <span class="label" style="left:50%; bottom:56px; transform:translateX(-50%)">压在任务栏上</span>
+      <div class="shell flat">
+        <i class="dot"></i>
+        <div class="stage"><div class="slot"></div><div class="slot"></div></div>
+        <i class="prog"></i>
+      </div>
+    </div>
+  </div>
+
+  <div id="taskbar">
+    <div class="tb-icon"></div><div class="tb-icon"></div><div class="tb-icon"></div><div class="tb-icon"></div>
+    <span id="clock"></span>
+  </div>
+
+<script>
+  const STOCKS = [
+    { name: '贵州茅台', price: '1682.35', pct: 1.24 },
+    { name: '腾讯控股', price: '402.60', pct: 2.18 },
+    { name: '苹果', price: '231.87', pct: -0.76 },
+    { name: '上证指数', price: '3412.08', pct: 0.35 },
+    { name: '平安银行', price: '11.42', pct: -1.32 }
+  ]
+  const INTERVAL = 6000
+  const SWAP_MS = 640
+
+  const clsOf = (p) => (p > 0 ? 'up' : p < 0 ? 'down' : 'flat')
+  const arrowOf = (p) => (p > 0 ? '▲' : p < 0 ? '▼' : '')
+
+  function itemHTML(q) {
+    const c = clsOf(q.pct)
+    const arrow = arrowOf(q.pct)
+    return `<div class="item ${c}">
+      <span class="nm">${q.name}</span>
+      <span class="pr">${q.price}</span>
+      <span class="chg">${arrow ? '<i class="arr">' + arrow + '</i>' : ''}${q.pct > 0 ? '+' : ''}${q.pct.toFixed(2)}%</span>
+    </div>`
+  }
+
+  function mount(bubble, startDelay) {
+    const shell = bubble.querySelector('.shell')
+    const slots = Array.from(bubble.querySelectorAll('.slot'))
+    const prog = bubble.querySelector('.prog')
+    let active = 0
+    let idx = 0
+    let token = 0
+
+    const setAccent = (q) => {
+      const c = clsOf(q.pct)
+      shell.classList.remove('up', 'down', 'flat')
+      shell.classList.add(c)
+    }
+
+    const restartProgress = (ms) => {
+      prog.style.setProperty('--dur', (ms || INTERVAL) / 1000 + 's')
+      prog.classList.remove('run')
+      void prog.offsetWidth
+      prog.classList.add('run')
+    }
+
+    const swap = () => {
+      const out = slots[active]
+      const next = slots[1 - active]
+      idx = (idx + 1) % STOCKS.length
+      const q = STOCKS[idx]
+
+      next.innerHTML = itemHTML(q)
+      next.classList.remove('on', 'leaving')
+      void next.offsetWidth
+      next.classList.add('on')
+
+      out.classList.remove('on')
+      out.classList.add('leaving')
+
+      setAccent(q)
+      restartProgress()
+      active = 1 - active
+
+      const my = ++token
+      setTimeout(() => {
+        if (my !== token) return
+        out.innerHTML = ''
+        out.classList.remove('leaving', 'on')
+      }, SWAP_MS + 80)
+    }
+
+    slots[0].innerHTML = itemHTML(STOCKS[0])
+    slots[0].classList.add('on')
+    setAccent(STOCKS[0])
+    restartProgress(INTERVAL + startDelay)
+
+    setTimeout(() => {
+      swap()
+      setInterval(swap, INTERVAL)
+    }, INTERVAL + startDelay)
+
+    /** 模拟一次行情刷新：只替换当前显示项的数字，不碰容器、不碰计时 */
+    const flash = () => {
+      const q = STOCKS[idx]
+      const p = parseFloat(q.price) * (1 + (Math.random() - 0.5) * 0.004)
+      q.price = p.toFixed(2)
+      q.pct = Number((q.pct + (Math.random() - 0.5) * 0.2).toFixed(2))
+      const slot = slots[active]
+      slot.innerHTML = itemHTML(q)
+      setAccent(q)
+      const item = slot.querySelector('.item')
+      if (item) {
+        item.classList.add('pulse')
+        setTimeout(() => item.classList.remove('pulse'), 560)
+      }
+    }
+
+    return { flash }
+  }
+
+  const flashers = []
+  ;[].slice.call(document.querySelectorAll('.bubble')).forEach((b, i) => {
+    flashers.push(mount(b, i * 900))
+  })
+
+  document.getElementById('refreshBtn').addEventListener('click', () => {
+    flashers.forEach((f) => f.flash())
+  })
+
+  setInterval(() => {
+    const d = new Date()
+    const p = (n) => String(n).padStart(2, '0')
+    document.getElementById('clock').textContent = `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`
+  }, 1000)
+</script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+{
+  "name": "stock-bubble",
+  "version": "1.3.0",
+  "description": "任务栏个股实时价格滚动气泡",
+  "main": "src/main.js",
+  "author": "WorkBuddy",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis",
+    "dist:store": "electron-builder --win appx -c.electronDist=node_modules/electron/dist -c.directories.output=store-build"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.6.3"
+  },
+  "devDependencies": {
+    "electron": "38.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.workbuddy.stockbubble",
+    "productName": "StockBubble",
+    "copyright": "Copyright © 2026",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "StockBubble-Setup-${version}.exe"
+    },
+    "appx": {
+      "artifactName": "StockBubble-${version}.appx",
+      "identityName": "WorkBuddy.StockBubble",
+      "publisher": "CN=WorkBuddy, O=WorkBuddy, C=CN",
+      "publisherDisplayName": "WorkBuddy",
+      "displayName": "股票气泡",
+      "applicationId": "StockBubble",
+      "languages": [
+        "zh-CN"
+      ],
+      "showNameOnTiles": true,
+      "backgroundColor": "transparent"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "股票气泡",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerLanguages": [
+        "zh_CN"
+      ],
+      "language": "2052",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "uninstallDisplayName": "股票气泡"
+    }
+  }
+}

@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>股票气泡 · 设置</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #f4f5f7;
+    --card: #ffffff;
+    --line: #ebedf0;
+    --text: #1f2329;
+    --sub: #8a9099;
+    --brand: #3b6ef6;
+    --up: #e8453c;
+    --down: #12a05c;
+  }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif;
+    font-size: 13px;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 0 24px;
+    user-select: none;
+  }
+  header {
+    padding: 22px 22px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .logo {
+    width: 38px; height: 38px; border-radius: 11px;
+    background: linear-gradient(145deg, #2b2f3a, #101218);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 17px; font-weight: 700;
+    box-shadow: 0 4px 10px rgba(20,24,40,.18);
+  }
+  .logo span { color: #ff5b5b; }
+  h1 { font-size: 15px; font-weight: 600; letter-spacing: .2px; }
+  .sub { font-size: 11.5px; color: var(--sub); margin-top: 3px; }
+
+  .card {
+    background: var(--card);
+    border-radius: 14px;
+    margin: 0 18px 14px;
+    padding: 16px 18px;
+    box-shadow: 0 1px 2px rgba(16,20,30,.05), 0 0 0 1px rgba(16,20,30,.04);
+  }
+  .card-title {
+    font-size: 12.5px; font-weight: 600; color: #40454d;
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .card-title .hint { font-weight: 400; color: var(--sub); font-size: 11px; }
+
+  /* 股票列表 */
+  .stock-list { max-height: 250px; overflow-y: auto; margin: 0 -4px; }
+  .stock-list::-webkit-scrollbar { width: 6px; }
+  .stock-list::-webkit-scrollbar-thumb { background: #dcdfe4; border-radius: 4px; }
+  .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 6px;
+    border-bottom: 1px solid var(--line);
+  }
+  .row:last-child { border-bottom: none; }
+  .row .meta { flex: 1; min-width: 0; }
+  .row .nm { font-size: 13px; font-weight: 500; }
+  .row .cd { font-size: 11px; color: var(--sub); margin-top: 2px; text-transform: uppercase; }
+  .row .px {
+    font-variant-numeric: tabular-nums;
+    font-size: 13px; font-weight: 600; text-align: right; min-width: 78px;
+  }
+  .row .pc {
+    font-variant-numeric: tabular-nums;
+    font-size: 12px; font-weight: 600; text-align: right; min-width: 64px;
+  }
+  .up { color: var(--up); }
+  .down { color: var(--down); }
+  .flat { color: #9096a0; }
+  .del {
+    width: 24px; height: 24px; border-radius: 7px; border: none;
+    background: transparent; color: #b9bec7; cursor: pointer;
+    font-size: 15px; line-height: 1; flex: none;
+  }
+  .del:hover { background: #fdecec; color: #e8453c; }
+  .empty-row { color: var(--sub); font-size: 12px; padding: 14px 4px; text-align: center; }
+
+  /* 添加 */
+  .add-box { display: flex; gap: 8px; margin-top: 12px; }
+  input[type="text"] {
+    flex: 1; height: 34px; border-radius: 9px;
+    border: 1px solid #dfe2e7; background: #fbfbfc;
+    padding: 0 11px; font-size: 13px; color: var(--text);
+    outline: none; font-family: inherit;
+  }
+  input[type="text"]:focus { border-color: var(--brand); background: #fff; box-shadow: 0 0 0 3px rgba(59,110,246,.12); }
+  button.primary {
+    height: 34px; padding: 0 16px; border-radius: 9px; border: none;
+    background: var(--brand); color: #fff; font-size: 13px; cursor: pointer;
+    font-family: inherit; font-weight: 500;
+  }
+  button.primary:hover { background: #2f5fe0; }
+  button.primary:active { transform: translateY(1px); }
+  .msg { font-size: 11.5px; margin-top: 8px; min-height: 16px; color: var(--sub); }
+  .msg.err { color: #e8453c; }
+  .msg.ok { color: var(--down); }
+
+  /* 滑块 */
+  .field { margin-bottom: 14px; }
+  .field:last-child { margin-bottom: 4px; }
+  .field .lab {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 12.5px; color: #40454d; margin-bottom: 7px;
+  }
+  .field .val { font-size: 12px; color: var(--sub); font-variant-numeric: tabular-nums; }
+  input[type="range"] {
+    -webkit-appearance: none; width: 100%; height: 4px; border-radius: 3px;
+    background: #e6e8ec; outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 15px; height: 15px; border-radius: 50%;
+    background: #fff; border: 2px solid var(--brand);
+    box-shadow: 0 1px 4px rgba(0,0,0,.18); cursor: pointer;
+  }
+
+  /* 开关 */
+  .switch-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid var(--line);
+  }
+  .switch-row:last-child { border-bottom: none; }
+  .switch-row .t { font-size: 12.5px; }
+  .switch-row .d { font-size: 11px; color: var(--sub); margin-top: 3px; }
+  .sw {
+    width: 40px; height: 23px; border-radius: 12px; background: #d8dbe1;
+    position: relative; cursor: pointer; transition: background .2s; flex: none;
+  }
+  .sw::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 19px; height: 19px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.22); transition: transform .2s;
+  }
+  .sw.on { background: var(--brand); }
+  .sw.on::after { transform: translateX(17px); }
+
+  /* 分段选择 */
+  .seg { display: flex; gap: 3px; background: #f0f1f4; border-radius: 10px; padding: 3px; }
+  .seg button {
+    flex: 1; height: 32px; border: none; background: transparent;
+    border-radius: 8px; font-size: 12.5px; color: #5b616b;
+    cursor: pointer; font-family: inherit; transition: all .16s;
+  }
+  .seg button.on {
+    background: #fff; color: var(--brand); font-weight: 600;
+    box-shadow: 0 1px 3px rgba(16,20,30,.12);
+  }
+  .btn-row { display: flex; gap: 8px; }
+  .ghost {
+    flex: 1; height: 34px; border-radius: 9px; cursor: pointer;
+    border: 1px solid #dfe2e7; background: #fbfbfc;
+    font-size: 12.5px; color: #40454d; font-family: inherit;
+    transition: all .15s;
+  }
+  .ghost:hover { border-color: var(--brand); color: var(--brand); background: #f5f8ff; }
+  .ghost.on { border-color: var(--brand); color: #fff; background: var(--brand); }
+
+  footer {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 4px 22px 0;
+  }
+  .quit {
+    background: none; border: none; color: var(--sub); font-size: 11.5px;
+    cursor: pointer; font-family: inherit; padding: 6px 0;
+  }
+  .quit:hover { color: #e8453c; }
+  .tip { font-size: 11px; color: var(--sub); }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">股<span>·</span></div>
+    <div>
+      <h1>股票气泡</h1>
+      <div class="sub">桌面任意位置显示自选股实时行情</div>
+    </div>
+  </header>
+
+  <section class="card">
+    <div class="card-title">
+      <span>自选股</span>
+      <span class="hint">支持 A股 / 港股 / 美股，最多 30 只</span>
+    </div>
+    <div class="stock-list" id="list"></div>
+    <div class="add-box">
+      <input type="text" id="addInput" placeholder="输入代码或名称，如 600519、00700、AAPL、贵州茅台" />
+      <button class="primary" id="addBtn">添加</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><span>显示方式</span><span class="hint" id="modeHint"></span></div>
+    <div class="seg" id="modeSeg">
+      <button data-mode="carousel">轮播（单个气泡）</button>
+      <button data-mode="scroll">横向滚动</button>
+    </div>
+
+    <div class="field" id="carouselField" style="margin-top:14px">
+      <div class="lab"><span>内容轮播间隔</span><span class="val" id="vCarousel"></span></div>
+      <input type="range" id="carousel" min="2" max="30" step="1" />
+      <div class="msg" style="margin-top:2px">每只股票在气泡里停留多久。这个节奏独立于行情刷新频率，改刷新不会影响它。</div>
+    </div>
+    <div class="field" id="speedField">
+      <div class="lab"><span>滚动速度</span><span class="val" id="vSpeed"></span></div>
+      <input type="range" id="speed" min="0" max="200" step="5" />
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><span>位置</span><span class="hint" id="posHint">默认贴在任务栏上方居中</span></div>
+    <div class="btn-row">
+      <button class="ghost" id="placeBtn">拖动定位气泡</button>
+      <button class="ghost" id="resetPosBtn">回到任务栏</button>
+    </div>
+    <div class="msg" id="posMsg">点击「拖动定位气泡」后，把气泡拖到桌面任意位置（也能压到任务栏上），松手自动保存。</div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><span>外观</span></div>
+
+    <div class="field">
+      <div class="lab"><span>气泡高度</span><span class="val" id="vHeight"></span></div>
+      <input type="range" id="height" min="24" max="60" step="1" />
+    </div>
+    <div class="field">
+      <div class="lab"><span>透明度</span><span class="val" id="vOpacity"></span></div>
+      <input type="range" id="opacity" min="30" max="100" step="1" />
+    </div>
+    <div class="field" id="widthField">
+      <div class="lab"><span>横向宽度（滚动模式）</span><span class="val" id="vWidth"></span></div>
+      <input type="range" id="width" min="40" max="100" step="5" />
+    </div>
+    <div class="field" id="gapField">
+      <div class="lab"><span>距任务栏间距</span><span class="val" id="vGap"></span></div>
+      <input type="range" id="gap" min="0" max="40" step="1" />
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><span>行情刷新</span><span class="hint">只更新数字</span></div>
+    <div class="field" style="margin-bottom:6px">
+      <div class="lab"><span>数据刷新间隔</span><span class="val" id="vRefresh"></span></div>
+      <input type="range" id="refresh" min="2" max="60" step="1" />
+      <div class="msg" style="margin-top:2px">多久向行情接口取一次最新价。到点后只替换气泡里当前显示的数字，不会打断轮播、不会让气泡跳动或变宽。</div>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="card-title"><span>行为</span></div>
+    <div class="switch-row">
+      <div>
+        <div class="t">鼠标穿透（锁定）</div>
+        <div class="d">开启后气泡不挡鼠标，点击直接穿透到下方窗口；移动位置请用上方「拖动定位气泡」</div>
+      </div>
+      <div class="sw" id="swClick"></div>
+    </div>
+    <div class="switch-row">
+      <div>
+        <div class="t">总在最前</div>
+        <div class="d">保持在其它窗口之上</div>
+      </div>
+      <div class="sw" id="swTop"></div>
+    </div>
+    <div class="switch-row">
+      <div>
+        <div class="t">开机自动启动</div>
+        <div class="d">登录 Windows 后自动运行气泡</div>
+      </div>
+      <div class="sw" id="swAuto"></div>
+    </div>
+  </section>
+
+  <footer>
+    <button class="quit" id="quitBtn">退出应用</button>
+    <span class="tip" id="updated"></span>
+  </footer>
+
+  <script src="settings.js"></script>
+</body>
+</html>

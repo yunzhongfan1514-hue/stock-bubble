@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+<title>Stock Bubble</title>
+<style>
+  :root {
+    --op: 0.86;
+    --accent: #9aa4b2;
+    --up: #ff5b5b;
+    --down: #26c281;
+    --dur: 6s;
+    --pad-l: 11px;
+    --pad-r: 14px;
+    --gapx: 7px;
+    --dot: 5px;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    width: 100%; height: 100%;
+    background: transparent;
+    overflow: hidden;
+    font-family: "Microsoft YaHei UI", "Segoe UI", "PingFang SC", sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+    cursor: default;
+  }
+
+  /* ------------------------------------------------ 滚动模式 */
+  #viewport {
+    position: absolute; inset: 0;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0, rgba(0,0,0,1) 34px, rgba(0,0,0,1) calc(100% - 34px), rgba(0,0,0,0) 100%);
+    mask-image: linear-gradient(90deg, rgba(0,0,0,0) 0, rgba(0,0,0,1) 34px, rgba(0,0,0,1) calc(100% - 34px), rgba(0,0,0,0) 100%);
+  }
+  body.mode-carousel #viewport { display: none; }
+  #track {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding-left: 0;
+    will-change: transform;
+    transform: translate3d(0,0,0);
+  }
+  .group { display: flex; align-items: center; gap: 9px; }
+
+  /* ------------------------------------------------ 轮播模式
+     结构：外壳（胶囊背景，固定不动） + 内容窗（viewport，裁切）
+     切换时只有 .slot 里的文字在动，外壳尺寸/位置始终不变  */
+  #carousel {
+    position: absolute; inset: 0;
+    display: none;
+  }
+  body.mode-carousel #carousel { display: block; }
+
+  #shell {
+    position: absolute;
+    left: 0; right: 0;
+    top: 4px; bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: var(--gapx);
+    padding: 0 var(--pad-r) 0 var(--pad-l);
+    border-radius: 999px;
+    color: #eef1f6;
+    background:
+      linear-gradient(180deg, rgba(32,34,40,var(--op)) 0%, rgba(13,14,18,var(--op)) 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.09) inset,
+      0 2px 10px rgba(0,0,0,0.34),
+      0 0 14px -6px var(--accent);
+    backdrop-filter: blur(18px) saturate(170%);
+    transition: box-shadow .7s ease;
+    overflow: hidden;
+  }
+  #shell.up { --accent: var(--up); }
+  #shell.down { --accent: var(--down); }
+  #shell.flat { --accent: #98a1ae; }
+
+  #dot {
+    width: var(--dot); height: var(--dot);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 7px 1px var(--accent);
+    flex: none;
+    opacity: .95;
+    transition: background .7s ease, box-shadow .7s ease;
+  }
+
+  /* 内容窗口：固定大小的裁切区域，文字在这里面淡入淡出 */
+  #stage {
+    position: relative;
+    flex: 1 1 auto;
+    height: 100%;
+    overflow: hidden;
+  }
+  .slot {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    transform: translate3d(0, 7px, 0);
+    filter: blur(1.6px);
+    transition:
+      opacity .62s cubic-bezier(.4, 0, .2, 1),
+      transform .62s cubic-bezier(.33, .8, .32, 1),
+      filter .55s ease;
+    will-change: opacity, transform;
+    pointer-events: none;
+  }
+  .slot.on {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+    filter: blur(0);
+  }
+  .slot.leaving {
+    opacity: 0;
+    transform: translate3d(0, -7px, 0);
+    filter: blur(1.6px);
+  }
+
+  /* 一行内容：名称 / 价格 / 涨跌 */
+  .item {
+    display: flex;
+    align-items: center;
+    gap: var(--gapx);
+    white-space: nowrap;
+    max-width: 100%;
+  }
+  .nm {
+    font-size: 12px;
+    line-height: 1;
+    color: rgba(255,255,255,0.66);
+    letter-spacing: .2px;
+    max-width: 130px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: none;
+  }
+  .pr {
+    font-size: 13px;
+    line-height: 1;
+    font-weight: 600;
+    letter-spacing: .2px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+    color: #ffffff;
+    transition: text-shadow .6s ease;
+  }
+  .chg {
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 600;
+    padding: 3px 6px;
+    border-radius: 7px;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+  .up .chg { color: #ff8f8f; background: rgba(255, 91, 91, 0.16); }
+  .down .chg { color: #5fe0a7; background: rgba(38, 194, 129, 0.16); }
+  .flat .chg { color: #a9b2bf; background: rgba(255, 255, 255, 0.08); }
+  .arr { font-size: 9px; margin-right: 2px; opacity: .9; }
+
+  /* 数据刷新时价格轻微脉冲 */
+  .item.pulse .pr { animation: pulse .55s ease; }
+  @keyframes pulse {
+    0% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+    35% { text-shadow: 0 0 10px var(--accent); }
+    100% { text-shadow: 0 0 0 rgba(255,255,255,0); }
+  }
+
+  /* 轮播进度条：挂在外壳上，跟着气泡静止，不随内容移动 */
+  #prog {
+    position: absolute;
+    left: var(--pad-l); right: var(--pad-r); bottom: 3px;
+    height: 1.5px;
+    border-radius: 2px;
+    background: rgba(255,255,255,.10);
+    overflow: hidden;
+    pointer-events: none;
+  }
+  #prog::after {
+    content: "";
+    display: block;
+    width: 100%; height: 100%;
+    background: var(--accent);
+    opacity: .8;
+    transform-origin: left center;
+    transform: scaleX(0);
+    transition: background .7s ease;
+  }
+  #prog.run::after { animation: prog var(--dur, 6s) linear forwards; }
+  @keyframes prog {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+  }
+
+  /* ------------------------------------------------ 滚动模式气泡 */
+  .pill {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: calc(100vh - 9px);
+    padding: 0 13px 0 10px;
+    border-radius: 999px;
+    white-space: nowrap;
+    color: #eef1f6;
+    background:
+      linear-gradient(180deg, rgba(32,34,40,var(--op)) 0%, rgba(13,14,18,var(--op)) 100%);
+    box-shadow:
+      0 0 0 1px rgba(255,255,255,0.09) inset,
+      0 2px 10px rgba(0,0,0,0.34),
+      0 0 14px -6px var(--accent);
+    backdrop-filter: blur(18px) saturate(170%);
+    transition: box-shadow .3s ease;
+  }
+  .pill::before {
+    content: "";
+    width: 5px; height: 5px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 7px 1px var(--accent);
+    flex: none;
+    opacity: .95;
+  }
+  .pill.up { --accent: var(--up); }
+  .pill.down { --accent: var(--down); }
+  .pill.flat { --accent: #98a1ae; }
+  .pill .nm { font-size: 12px; }
+  .pill .pr { font-size: 13px; font-weight: 600; }
+  .pill.pulse .pr { animation: pulse .55s ease; }
+
+  /* ------------------------------------------------ 定位模式 */
+  body.placing,
+  body.unlocked { -webkit-app-region: drag; }
+  body.placing::after {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    border: 1px dashed rgba(96,165,250,.95);
+    border-radius: 999px;
+    box-shadow: 0 0 0 3px rgba(96,165,250,.16);
+    pointer-events: none;
+  }
+
+  /* ------------------------------------------------ 状态提示 */
+  #empty {
+    position: absolute; inset: 0;
+    display: none;
+    align-items: center; justify-content: center;
+    font-size: 12px;
+    color: rgba(255,255,255,.72);
+    background: linear-gradient(180deg, rgba(32,34,40,var(--op)), rgba(13,14,18,var(--op)));
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgba(255,255,255,.09) inset, 0 2px 10px rgba(0,0,0,.34);
+  }
+  #empty.show { display: flex; }
+
+  #warn {
+    position: absolute; right: 40px; top: 50%; transform: translateY(-50%);
+    font-size: 11px; color: #ffcf6b;
+    opacity: 0; transition: opacity .3s;
+    pointer-events: none;
+  }
+  body.mode-carousel #warn { right: 6px; top: 2px; transform: none; font-size: 10px; }
+  #warn.show { opacity: 1; }
+
+  /* 隐藏的测量容器：算出外壳需要多宽才能装下最长的一只 */
+  #measure {
+    position: absolute;
+    left: -9999px; top: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+  #measure .probe {
+    display: flex;
+    align-items: center;
+    gap: var(--gapx);
+    padding: 0 var(--pad-r) 0 var(--pad-l);
+    white-space: nowrap;
+  }
+  #measure .probe > i {
+    width: var(--dot); height: var(--dot);
+    border-radius: 50%;
+    flex: none;
+    display: block;
+  }
+  #measure .slot,
+  #measure .item { transition: none !important; filter: none !important; }
+</style>
+</head>
+<body class="mode-carousel">
+  <div id="viewport">
+    <div id="track">
+      <div class="group" id="groupA"></div>
+      <div class="group" id="groupB"></div>
+    </div>
+  </div>
+
+  <div id="carousel">
+    <div id="shell" class="flat">
+      <i id="dot"></i>
+      <div id="stage">
+        <div class="slot" id="slotA"></div>
+        <div class="slot" id="slotB"></div>
+      </div>
+      <i id="prog"></i>
+    </div>
+  </div>
+
+  <div id="measure"></div>
+  <div id="empty">右键托盘图标 → 设置，添加你关注的股票</div>
+  <div id="warn"></div>
+  <script src="bar.js"></script>
+</body>
+</html>
